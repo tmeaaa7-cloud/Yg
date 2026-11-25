@@ -1,0 +1,648 @@
+ <!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Звёздный апгрейдер</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:sans-serif;color:#fff;min-height:100vh;padding-bottom:96px;overflow-x:hidden;
+background:radial-gradient(circle at 20% 10%,#4f46e5 0,transparent 40%),radial-gradient(circle at 80% 70%,#db274d 0,transparent 45%),radial-gradient(circle at 30% 90%,#0ea5e9 0,transparent 40%),#0b0e17;background-attachment:fixed}
+#bg{position:fixed;inset:;pointer-events:none;z-index:0;overflow:hidden}
+#bg span{position:absolute;bottom:-30px;opacity:.5;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-110vh) rotate(360deg);opacity:0}}
+.top,.page,.nav{position:relative;z-index:1}
+.top{display:flex;justify-content:space-between;align-items:center;padding:16px;font-size:24px;font-weight:bold;background:rgba(255,255,255,.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.18)}
+/* Название слева: цвета меняй здесь (Star и UP) */
+.logo-star{color:#facc15;text-shadow:0 0 12px rgba(250,204,21,.6)}
+.logo-up{color:#38bdf8;text-shadow:0 0 12px rgba(56,189,248,.6)}
+.page{display:none;padding:16px}
+.page.active{display:block}
+h3{margin-bottom:8px}
+button{color:#fff;font-size:16px;margin:4px 3px;padding:12px 14px;border-radius:100px;cursor:pointer;
+background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.06));
+border:1px solid rgba(255,255,255,.4);
+backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+box-shadow:0 4px 18px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.5)}
+button:active{transform:scale(.95)}
+button:disabled{opacity:.4}
+button.sel{background:linear-gradient(135deg,rgba(99,179,255,.6),rgba(168,85,247,.35));border-color:#fff}
+input[type=text],select{width:100%;padding:12px;margin:8px 0;border-radius:14px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);font-size:16px}
+select option{color:#000}
+.nav{position:fixed;bottom:10px;left:10px;right:10px;display:flex;border-radius:100px;padding:4px;z-index:5;
+background:rgba(255,255,255,.1);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.25)}
+.nav button{flex:1;min-width:0;margin:2px;padding:10px 0;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.nav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card{position:relative;overflow:hidden;background:rgba(255,255,255,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:2px solid var(--c,rgba(255,255,255,.2));border-radius:18px;padding:12px;margin:10px 0;box-shadow:0 0 14px var(--c,transparent)}
+.gem{display:inline-block;font-size:38px;vertical-align:middle;margin-right:8px;animation:float 2.5s ease-in-out infinite;filter:drop-shadow(0 0 8px var(--c,#fff))}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 6px var(--c,gold))}50%{filter:drop-shadow(0 0 22px var(--c,gold))}}
+@keyframes shine{0%{left:-60%}100%{left:130%}}
+@keyframes rainbow{0%{border-color:#f00;box-shadow:0 0 18px #f00}20%{border-color:#ff0;box-shadow:0 0 18px #ff0}40%{border-color:#0f0;box-shadow:0 0 18px #0f0}60%{border-color:#0ff;box-shadow:0 0 18px #0ff}80%{border-color:#f0f;box-shadow:0 0 18px #f0f}100%{border-color:#f00;box-shadow:0 0 18px #f00}}
+@keyframes rays{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+/* Иконка промокода: цвет задаётся здесь (fill - заливка, как у звезды) */
+.topRight{display:flex;align-items:center;gap:14px}
+.promoBtn{padding:0;margin:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;cursor:pointer}
+.promoBtn svg{width:28px;height:28px;fill:#facc15;stroke:#f59e0b;stroke-width:6;stroke-linejoin:round;filter:drop-shadow(0 0 4px rgba(250,204,21,.6))}
+#promoModal{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(5,7,15,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px}
+#promoModal.on{display:flex}
+#promoModal input{width:100%;box-sizing:border-box;padding:12px;font-size:18px;text-align:center;text-transform:uppercase;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff}
+#promoMsg{min-height:24px;margin:10px 0 14px;font-size:16px}
+#sellModal{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(5,7,15,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px}
+#sellModal.on{display:flex}
+.sellBox{width:100%;max-width:340px;text-align:center;padding:22px 18px;border-radius:20px;background:rgba(30,34,50,.96);border:1px solid rgba(255,255,255,.3);box-shadow:0 0 30px rgba(0,0,0,.5)}
+.sellBox .sgem{font-size:56px}
+.sellBox p{margin:10px 0 16px;font-size:18px}
+#caseView{position:fixed;inset:0;z-index:10;display:none;overflow-y:auto;background:rgba(5,7,15,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:16px}
+#caseView.on{display:block}
+.cvBox{padding:14px}
+.cvTitle{margin:14px 0 8px;font-size:22px}
+.wheelBlock{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:10px}
+.wbTitle{font-weight:bold;margin-bottom:8px}
+.wheelWrap{position:relative;overflow:hidden;border-radius:14px;background:rgba(0,0,0,.35);padding:10px 0}
+.wheelWrap .marker{position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#facc15;box-shadow:0 0 10px #facc15;z-index:2}
+.strip{display:flex;will-change:transform}
+.wItem{--c:#9ca3af;flex:0 0 90px;width:90px;height:104px;margin:0 3px;border:2px solid var(--c);border-radius:12px;background:rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 10px color-mix(in srgb,var(--c) 40%,transparent)}
+.wItem .e{font-size:32px;white-space:nowrap}
+.wItem .p{font-size:11px;margin-top:6px;opacity:.9}
+.wItem.win{box-shadow:0 0 20px var(--c),inset 0 0 14px var(--c)}
+.cvDrop{font-size:12px;opacity:.85;margin:10px 0}
+.openBtn svg{width:16px;height:16px;vertical-align:-2px;fill:#facc15;stroke:#f59e0b;stroke-width:1;stroke-linejoin:round}
+.case{cursor:pointer}
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.case{--c:#9ca3af;background:rgba(255,255,255,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:2px solid var(--c);border-radius:18px;padding:10px;text-align:center;min-width:0;box-shadow:0 0 14px var(--c),inset 0 0 10px color-mix(in srgb,var(--c) 35%,transparent);animation:caseGlow 2.4s ease-in-out infinite}
+@keyframes caseGlow{0%,100%{box-shadow:0 0 8px var(--c),inset 0 0 8px color-mix(in srgb,var(--c) 25%,transparent)}50%{box-shadow:0 0 22px var(--c),inset 0 0 14px color-mix(in srgb,var(--c) 45%,transparent)}}
+/* Цвет свечения кейса: меняй цвета здесь, а класс выбирай в массиве CASES (поле cls) */
+.case-common{--c:#9ca3af}
+.case-rare{--c:#38bdf8}
+.case-epic{--c:#a855f7}
+.case-gold{--c:#facc15}
+.case-legend{--c:#fb923c}
+.case-mythic{--c:#ff69b4}
+.case .pic{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;background:rgba(255,255,255,.12)}
+.case .nm{margin-top:8px;font-size:15px;font-weight:bold;overflow-wrap:anywhere}
+.case .pr{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px;font-size:16px}
+.case .pr svg{width:18px;height:18px;fill:#facc15;stroke:#f59e0b;stroke-width:1;stroke-linejoin:round;filter:drop-shadow(0 0 4px rgba(250,204,21,.6))}
+.r-common{--c:#9ca3af}
+.r-rare{--c:#38bdf8}
+.r-epic{--c:#a855f7}
+.r-gold{--c:#facc15}
+.r-legend{--c:#fb923c}
+.r-gold::after,.r-legend::after,.r-mythic::after{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:shine 2.6s linear infinite;pointer-events:none}
+.r-mythic{--c:#ff69b4;animation:rainbow 3s linear infinite}
+.tag{font-size:12px;opacity:.85;margin-left:4px}
+.chanceRow{display:inline-block;text-align:center}
+.chanceRow small{display:block;font-size:12px;opacity:.85;margin-top:-2px}
+#wheel{font-size:60px;text-align:center;margin:16px 0;min-height:76px}
+#wheel.spinning{animation:spin .5s linear infinite}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+#wheel.win{animation:pop .6s}
+#wheel.lose{animation:shake .5s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+#view{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+background:rgba(5,7,15,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);text-align:center;padding:20px}
+#view.on{display:flex}
+#rays{position:absolute;width:150vmax;height:150vmax;opacity:.35;animation:rays 14s linear infinite;
+background:repeating-conic-gradient(var(--c,#fff) 0 8deg,transparent 8deg 24deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 55%);mask-image:radial-gradient(circle,#000 0,transparent 55%)}
+#viewEmoji{position:relative;font-size:180px;animation:float 3s ease-in-out infinite,glow 2s ease-in-out infinite}
+#viewName,#viewPrice,#viewInfo,#view button{position:relative}
+#viewName{font-size:32px;font-weight:bold;margin-top:12px}
+#viewPrice{font-size:22px;margin:10px 0}
+#avatar{width:110px;height:110px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.6);box-shadow:0 0 20px rgba(255,255,255,.3);display:block;margin:8px auto;background:rgba(255,255,255,.12)}
+.prof{text-align:center}
+.prof h3{font-size:24px}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div class="top"><div class="logo"><span class="logo-star">Star</span><span class="logo-up">UP</span></div><div class="topRight"><div>⭐ <span id="stars">0</span></div><button class="promoBtn" id="promoBtn" onclick="openPromo()" aria-label="Ввести промокод"><svg viewBox="0 0 510 510" xmlns="http://www.w3.org/2000/svg"><g><path d="m50.621 210h3.758c27.912 0 50.621-22.708 50.621-50.621v-9.379h-30v9.379c0 11.371-9.251 20.621-20.621 20.621h-3.758c-11.37 0-20.621-9.25-20.621-20.621v-48.758c0-11.371 9.251-20.621 20.621-20.621h3.758c11.37 0 20.621 9.25 20.621 20.621v9.379h30v-9.379c0-27.913-22.709-50.621-50.621-50.621h-3.758c-27.912 0-50.621 22.708-50.621 50.621v48.758c0 27.913 22.709 50.621 50.621 50.621z"></path><path d="m185.621 210h3.758c27.912 0 50.621-22.708 50.621-50.621v-48.758c0-27.913-22.709-50.621-50.621-50.621h-3.758c-27.912 0-50.621 22.708-50.621 50.621v48.758c0 27.913 22.709 50.621 50.621 50.621zm-20.621-99.379c0-11.371 9.251-20.621 20.621-20.621h3.758c11.37 0 20.621 9.25 20.621 20.621v48.758c0 11.371-9.251 20.621-20.621 20.621h-3.758c-11.37 0-20.621-9.25-20.621-20.621z"></path><path d="m375 159.379v-48.758c0-27.913-22.709-50.621-50.621-50.621h-54.379v150h54.379c27.912 0 50.621-22.708 50.621-50.621zm-75-69.379h24.379c11.37 0 20.621 9.25 20.621 20.621v48.758c0 11.371-9.251 20.621-20.621 20.621h-24.379z"></path><path d="m510 90v-30h-105v150h105v-30h-75v-30h55v-30h-55v-30z"></path><path d="m450 270h-30v-30h-60v30h-30v-30h-60v30h-30v-30h-60v30h-30v-30h-60v30h-30v-30h-60v60h30v30h-30v30h30v30h-30v60h60v-30h30v30h60v-30h30v30h60v-30h30v30h60v-30h30v30h60v-30h30v30h60v-60h-30v-30h30v-30h-30v-30h30v-60h-60zm-285.754 98.033-21.213 21.213-21.213-21.213-21.213 21.213-21.213-21.213 21.213-21.213-21.213-21.213 21.213-21.213 21.213 21.213 21.213-21.213 21.213 21.213-21.213 21.213zm133.86 0-21.213 21.213-21.213-21.213-21.213 21.213-21.213-21.213 21.213-21.213-21.213-21.213 21.213-21.213 21.213 21.213 21.213-21.213 21.213 21.213-21.213 21.213zm132.5 0-21.213 21.213-21.213-21.213-21.213 21.213-21.213-21.213 21.213-21.213-21.213-21.213 21.213-21.213 21.213 21.213 21.213-21.213 21.213 21.213-21.213 21.213z"></path></g></svg></button></div></div>
+
+<div class="page active" id="upgrade">
+<h3>Апгрейдер</h3>
+<p>Что улучшаем?</p>
+<select id="target"></select>
+<select id="starsSel"></select>
+<p id="stakeInfo" style="font-size:18px;margin:8px 0"></p>
+<div id="chances"></div>
+<div id="wheel">🎰</div>
+<button id="go" style="width:100%" disabled>Улучшить</button>
+<p id="result" style="text-align:center;margin-top:10px;font-size:18px"></p>
+</div>
+
+<div class="page" id="cases">
+<h3>Кейсы</h3>
+<div class="cases" id="casesList"></div>
+</div>
+
+<div class="page" id="earn">
+<h3>Заработок</h3>
+<div class="card">100 звёзд, ждать 10 часов<br><button onclick="startEarn(100,10*3600)">Заработать 100</button></div>
+<div class="card">1000 звёзд, ждать 2 дня<br><button onclick="startEarn(1000,48*3600)">Заработать 1000</button></div>
+<p id="timer" style="margin:10px 0"></p>
+<button id="claim" style="display:none" onclick="claimEarn()">Забрать звёзды</button>
+</div>
+
+<div class="page" id="shop">
+<h3>Подарки</h3>
+<div id="shopList"></div>
+</div>
+
+<div class="page" id="profile">
+<div class="prof">
+<img id="avatar" alt="">
+<button onclick="document.getElementById('file').click()">Сменить аватарку</button>
+<input type="file" id="file" accept="image/*" style="display:none">
+<h3 id="nick">Профиль</h3>
+<input type="text" id="nickInput" maxlength="20" placeholder="Придумай ник">
+<button onclick="saveNick()">Сохранить ник</button>
+<p style="margin-top:8px">Любимый подарок: <span id="fav">нет</span></p>
+</div>
+<h4 style="margin-top:14px">Мои подарки</h4>
+<div id="myGifts"></div>
+</div>
+
+<div id="view">
+<div id="rays"></div>
+<div id="viewEmoji"></div>
+<div id="viewName"></div>
+<div id="viewPrice"></div>
+<div id="viewInfo" style="opacity:.8"></div>
+<button onclick="closeView()" style="margin-top:20px;padding:14px 40px">Закрыть</button>
+</div>
+
+<div id="caseView">
+<div class="case cvBox" id="cvBox" style="cursor:default">
+<img class="pic" id="cvPic" alt="" style="width:40%;margin:0 auto">
+<div class="nm" id="cvName"></div>
+<h3 class="cvTitle">Розыгрыш</h3>
+<div class="wheelBlock">
+<div class="wbTitle">Колесо фортуны</div>
+<div class="wheelWrap"><div class="marker"></div><div class="strip" id="strip"></div></div>
+<div class="cvDrop" id="cvDrop"></div>
+<button class="openBtn" id="cvOpen" style="width:100%" onclick="openCaseSpin()"></button>
+<p id="cvResult" style="min-height:24px;margin-top:8px;font-size:18px"></p>
+</div>
+<button id="cvClose" onclick="closeCase()" style="margin-top:12px;padding:12px 36px">Назад</button>
+</div>
+</div>
+
+<div id="promoModal">
+<div class="sellBox">
+<h3 style="margin:0 0 12px">Промокод</h3>
+<input id="promoInput" type="text" placeholder="Введите код" autocomplete="off" onkeydown="if(event.key==='Enter')applyPromo()">
+<p id="promoMsg"></p>
+<button onclick="applyPromo()" style="padding:12px 22px">Активировать</button>
+<button onclick="closePromo()" style="padding:12px 22px">Отмена</button>
+</div>
+</div>
+
+<div id="sellModal">
+<div class="sellBox">
+<div class="sgem" id="sellEmoji"></div>
+<p id="sellText"></p>
+<button onclick="confirmSell()" style="padding:12px 22px">Подтвердить</button>
+<button onclick="closeSell()" style="padding:12px 22px">Отмена</button>
+</div>
+</div>
+
+<div class="nav">
+<button class="sel" onclick="show('upgrade',this)"><svg viewBox="0 0 24 24"><path d="M17 11l-5-5-5 5M17 18l-5-5-5 5"/></svg><span>Апгрейд</span></button>
+<button onclick="show('cases',this)"><svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg><span>Кейсы</span></button>
+<button onclick="show('earn',this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M14.8 9.3c-.5-.8-1.5-1.3-2.8-1.3-1.6 0-2.8.8-2.8 2 0 2.8 5.6 1.3 5.6 4 0 1.2-1.2 2-2.8 2-1.3 0-2.3-.5-2.8-1.3"/></svg><span>Заработок</span></button>
+<button onclick="show('shop',this)"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v9H5v-9M7.5 8a2.5 2.5 0 010-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 010 5"/></svg><span>Подарки</span></button>
+<button onclick="show('profile',this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Профиль</span></button>
+</div>
+
+<script>
+const tg=window.Telegram?window.Telegram.WebApp:null;
+if(tg){tg.ready();tg.expand();}
+const GIFTS=[
+{id:1,name:'Мишка',emoji:'🧸',price:50},
+{id:1,name:'67',emoji:'6️⃣7️⃣',price:67},
+{id:2,name:'Жаба',emoji:'🐸',price:100},
+{id:3,name:'Цветок',emoji:'🌸',price:120},
+{id:4,name:'Сердце',emoji:'💖',price:150},
+{id:5,name:'Ракета',emoji:'🚀',price:200},
+{id:6,name:'Пицца',emoji:'🍕',price:250},
+{id:7,name:'Мороженое',emoji:'🍦',price:300},
+{id:8,name:'Торт',emoji:'🎂',price:400},
+{id:9,name:'Кубок',emoji:'🏆',price:500},
+{id:10,name:'Гитара',emoji:'🎸',price:650},
+{id:11,name:'Лиса',emoji:'🦊',price:800},
+{id:12,name:'Волк',emoji:'🐺',price:1000},
+{id:13,name:'Ракета',emoji:'🚀',price:1500},
+{id:14,name:'Панда',emoji:'🐼',price:1800},
+{id:15,name:'Лев',emoji:'🦁',price:2200},
+{id:16,name:'Орёл',emoji:'🦅',price:2500},
+{id:16,name:'Зеленое Яблоко',emoji:'🍏',price:3000},
+{id:17,name:'Ледяной кристалл',emoji:'🧊',price:3500},
+{id:18,name:'Алмаз',emoji:'💎',price:4000},
+{id:19,name:'Корона',emoji:'👑',price:5000},
+{id:20,name:'Звёздный кот',emoji:'🐱',price:7000},
+{id:21,name:'Волшебный шар',emoji:'🔮',price:8000},
+{id:22,name:'Китайский Дракон',emoji:'🐉',price:9000},
+{id:23,name:'Огненный феникс',emoji:'🐦‍🔥',price:12000},
+{id:24,name:'Единорог',emoji:'🦄',price:15000},
+{id:25,name:'Галактика',emoji:'🌌',price:22000},
+{id:26,name:'Золотой Якорь',emoji:'🪝',price:30000},
+{id:27,name:'Красное Яблоко',emoji:'🍎',price:40000},
+{id:28,name:'Снеговик',emoji:'☃️',price:45000},
+{id:28,name:'Яблочный Сок',emoji:'🧃',price:55000},
+{id:29,name:'Прешелец-НЛО',emoji:'👽🛸',price:60000},
+{id:29,name:'Сатурн',emoji:'🪐',price:70000},
+{id:29,name:'Шоколадный Пепе',emoji:'🐸🍫',price:100000}
+];
+// Шансы успеха: ключ - процент улучшения, значение - шанс победы в %
+const CH={10:60,20:55,25:50,30:45,40:40,50:35,60:30,70:25,80:20,90:16,100:12};
+let S=JSON.parse(localStorage.getItem('state')||'null')||{};
+S=Object.assign({stars:20,promos:[],gifts:[],fav:null,earn:null,nick:'',avatar:''},S);
+S.stars=Math.max(S.stars,0); // тест: минимум 10000 звёзд
+function save(){
+ try{localStorage.setItem('state',JSON.stringify(S));}catch(e){alert('Не хватило места для аватарки, выбери картинку поменьше');}
+ render();
+}
+let chance=null,busy=false;
+function show(id,btn){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('sel'));
+ btn.classList.add('sel');
+}
+function giftById(id){return GIFTS.find(g=>g.id===id);}
+function rarity(g){
+ if(g.price>=50000)return 'r-mythic';
+ if(g.price>=15000)return 'r-legend';
+ if(g.price>=4000)return 'r-gold';
+ if(g.price>=800)return 'r-epic';
+ if(g.price>=150)return 'r-rare';
+ return 'r-common';
+}
+function rarityName(g){
+ return {'r-mythic':'космический','r-legend':'мифический','r-gold':'легендарный','r-epic':'эпический','r-rare':'редкий','r-common':'мусорный'}[rarity(g)];
+}
+const STARS_STEP=10; // шаг списка «Звёзды»
+function renderTargets(){
+ const sel=document.getElementById('target'),ss=document.getElementById('starsSel');
+ const old=sel.value,oldS=ss.value;
+ let h='<option value="">Подарки</option>';
+ S.gifts.forEach((gid,i)=>{const g=giftById(gid);h+='<option value="g'+i+'">'+g.emoji+' '+g.name+'</option>';});
+ sel.innerHTML=h;
+ if([...sel.options].some(o=>o.value===old))sel.value=old;
+ // звёзды: только числа, кратные 10 (10, 20, 30...), не больше баланса; шаг меняется в STARS_STEP
+ const a=['<option value="">Звёзды</option>'];
+ for(let n=STARS_STEP;n<=S.stars;n+=STARS_STEP)a.push('<option value="'+n+'">'+n+' ⭐</option>');
+ ss.innerHTML=a.join('');
+ if([...ss.options].some(o=>o.value===oldS))ss.value=oldS;
+ updateInfo();
+}
+function renderChances(){
+ const box=document.getElementById('chances');box.innerHTML='';
+ Object.keys(CH).forEach(p=>{
+  const w=document.createElement('div');w.className='chanceRow';
+  const b=document.createElement('button');b.textContent='+'+p+'%';b.dataset.p=p;
+  b.onclick=()=>{chance=parseInt(p);updateInfo();};
+  const s=document.createElement('small');s.textContent='шанс '+CH[p]+'%';
+  w.appendChild(b);w.appendChild(s);box.appendChild(w);
+ });
+}
+function updateInfo(){
+ document.getElementById('stakeInfo').textContent=chance?('Улучшение на '+chance+'%, шанс успеха '+CH[chance]+'%'):'Выбери процент улучшения';
+ const hasTarget=!!(document.getElementById('target').value||document.getElementById('starsSel').value);
+ document.getElementById('go').disabled=busy||!chance||!hasTarget;
+ document.querySelectorAll('#chances button').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.p)===chance));
+}
+function spin(){
+ const gv=document.getElementById('target').value;
+ const sv=parseInt(document.getElementById('starsSel').value)||0;
+ const isStars=!gv&&sv>0;
+ if(!gv&&!isStars)return;
+ if(isStars&&sv>S.stars)return;
+ const t=isStars?'stars':gv;
+ const amount=isStars?sv:0;
+ busy=true;
+ const res=document.getElementById('result');
+ const wheel=document.getElementById('wheel');
+ const win=Math.random()*100<CH[chance];
+ document.getElementById('go').disabled=true;
+ res.textContent='';
+ wheel.className='spinning';
+ let n=0;
+ const iv=setInterval(()=>{wheel.textContent=['🎰','⭐','💥','🍀'][n++%4];},100);
+ setTimeout(()=>{
+  clearInterval(iv);
+  if(t==='stars'){
+   if(win){const add=Math.floor(amount*chance/100);S.stars+=add;res.textContent='Повезло! +'+add+' звёзд';wheel.textContent='🍀';}
+   else{S.stars-=amount;res.textContent='Не повезло, '+amount+' звёзд сгорело';wheel.textContent='💥';}
+  }else{
+   const i=parseInt(t.slice(1));const g=giftById(S.gifts[i]);
+   if(win){const next=GIFTS.find(x=>x.price>g.price);
+    if(next){S.gifts[i]=next.id;res.textContent='Подарок улучшен до: '+next.emoji+' '+next.name;wheel.textContent='🍀';}
+    else{res.textContent='Это уже самый крутой подарок';}
+   }else{
+    if(S.fav===S.gifts[i])S.fav=null;
+    S.gifts.splice(i,1);res.textContent='Не повезло, подарок потерян';wheel.textContent='💥';
+   }
+  }
+  wheel.className=win?'win':'lose';
+  busy=false;chance=null;updateInfo();save();
+ },1500);
+}
+document.getElementById('go').onclick=spin;
+document.getElementById('target').onchange=function(){if(this.value)document.getElementById('starsSel').value='';updateInfo();};
+document.getElementById('starsSel').onchange=function(){if(this.value)document.getElementById('target').value='';updateInfo();};
+function startEarn(amount,sec){
+ if(S.earn){alert('Таймер уже идёт');return;}
+ S.earn={amount:amount,end:Date.now()+sec*1000};save();
+}
+function claimEarn(){
+ if(S.earn&&Date.now()>=S.earn.end){S.stars+=S.earn.amount;S.earn=null;save();}
+}
+function renderEarn(){
+ const t=document.getElementById('timer'),c=document.getElementById('claim');
+ if(!S.earn){t.textContent='';c.style.display='none';return;}
+ const left=S.earn.end-Date.now();
+ if(left<=0){t.textContent='Готово: '+S.earn.amount+' звёзд';c.style.display='inline-block';}
+ else{const h=Math.floor(left/3600000),m=Math.floor(left%3600000/60000);t.textContent='Осталось: '+h+' ч '+m+' мин';c.style.display='none';}
+}
+function openView(g){
+ const v=document.getElementById('view');
+ v.className='on '+rarity(g);
+ document.getElementById('viewEmoji').textContent=g.emoji;
+ document.getElementById('viewName').textContent=g.name+' ('+rarityName(g)+')';
+ document.getElementById('viewPrice').textContent='Цена: '+g.price+' ⭐';
+ document.getElementById('viewInfo').textContent='Сколько осталось на рынке: скоро появится';
+}
+function closeView(){document.getElementById('view').className='';}
+function renderShop(){
+ const box=document.getElementById('shopList');box.innerHTML='';
+ GIFTS.forEach(g=>{
+  const d=document.createElement('div');d.className='card '+rarity(g);
+  d.innerHTML='<span class="gem">'+g.emoji+'</span><b>'+g.name+'</b><span class="tag">'+rarityName(g)+'</span><br>'+g.price+' ⭐<br>';
+  const v=document.createElement('button');v.textContent='Смотреть';v.onclick=()=>openView(g);
+  const b=document.createElement('button');b.textContent='Купить';
+  b.onclick=()=>{if(S.stars<g.price){alert('Не хватает звёзд');return;}S.stars-=g.price;S.gifts.push(g.id);save();};
+  d.appendChild(v);d.appendChild(b);box.appendChild(d);
+ });
+}
+function displayName(){
+ const u=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user;
+ return S.nick||(u?u.first_name:'Игрок');
+}
+function saveNick(){
+ const v=document.getElementById('nickInput').value.trim();
+ if(!v){alert('Введи ник');return;}
+ S.nick=v;save();
+}
+document.getElementById('file').onchange=function(e){
+ const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();
+ r.onload=function(){
+  const img=new Image();
+  img.onload=function(){
+   const c=document.createElement('canvas');c.width=c.height=200;
+   const x=c.getContext('2d');
+   const side=Math.min(img.width,img.height);
+   x.drawImage(img,(img.width-side)/2,(img.height-side)/2,side,side,0,0,200,200);
+   S.avatar=c.toDataURL('image/jpeg',0.8);save();
+  };
+  img.src=r.result;
+ };
+ r.readAsDataURL(f);
+};
+function renderProfile(){
+ const fg=S.fav?giftById(S.fav):null;
+ document.getElementById('nick').textContent=displayName()+(fg?' '+fg.emoji:'');
+ document.getElementById('nickInput').value=S.nick||'';
+ const av=document.getElementById('avatar');
+ av.src=S.avatar||'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="110" height="110"><text x="55" y="75" font-size="60" text-anchor="middle">🙂</text></svg>';
+ document.getElementById('fav').textContent=fg?fg.emoji+' '+fg.name:'нет';
+ const box=document.getElementById('myGifts');box.innerHTML='';
+ if(!S.gifts.length)box.textContent='Подарков пока нет';
+ S.gifts.forEach((gid,i)=>{
+  const g=giftById(gid);
+  const d=document.createElement('div');d.className='card '+rarity(g);
+  d.innerHTML='<span class="gem">'+g.emoji+'</span>'+g.name+'<span class="tag">'+rarityName(g)+'</span><br>';
+  const b=document.createElement('button');b.textContent='Поставить в профиль';
+  b.onclick=()=>{S.fav=gid;save();};
+  const sb=document.createElement('button');sb.textContent='Продать';
+  sb.onclick=()=>openSell(i);
+  d.appendChild(b);d.appendChild(sb);box.appendChild(d);
+ });
+}
+function render(){
+ document.getElementById('stars').textContent=S.stars;
+ renderTargets();renderShop();renderProfile();renderEarn();
+}
+function makeBg(){
+ const bg=document.getElementById('bg');
+ for(let i=0;i<18;i++){
+  const s=document.createElement('span');
+  s.textContent=['⭐','✨','💫'][i%3];
+  s.style.left=Math.random()*100+'%';
+  s.style.fontSize=(12+Math.random()*20)+'px';
+  s.style.animationDuration=(8+Math.random()*10)+'s';
+  s.style.animationDelay=(-Math.random()*12)+'s';
+  bg.appendChild(s);
+ }
+}
+// ===== КАРТОЧКИ КЕЙСОВ - РЕДАКТИРУЙ ЗДЕСЬ =====
+// name - название; price - цена открытия в звёздах;
+// img - прямая ссылка на превью (картинка кейса в сетке и в карточке кейса); пусто или битая ссылка = иконка-заглушка;
+// cls - класс свечения обводки (case-common, case-rare, case-epic, case-gold, case-legend, case-mythic);
+// drop - какие ранги подарков выпадают из кейса и с каким весом (шанс = вес / сумма весов).
+// Ранги: r-common (мусорный), r-rare (редкий), r-epic (эпический), r-gold (легендарный), r-legend (мифический), r-mythic (космический).
+// Внутри ранга подарок выбирается случайно из раздела «Подарки» (ранг зависит от цены подарка, см. rarity()).
+const CASES=[
+{
+ id:5,
+ name:'Мусорный кейс',
+ price:20,
+ img:'https://static.tildacdn.com/tila3530-6336-4236-b462-613337306332/photo_2026-11-22_21-.jpg', // <- ПРЯМАЯ ССЫЛКА НА ПРЕВЬЮ (вставь URL картинки между кавычками)
+ cls:'case-common',
+ drop:{'r-common':100}
+},
+{
+ id:1,
+ name:'Стартовый кейс',
+ price:50,
+ img:'https://static.tildacdn.com/tila6236-3035-4164-b133-326336386637/photo_2026-11-22_21-.jpg', // <- ПРЯМАЯ ССЫЛКА НА ПРЕВЬЮ (вставь URL картинки между кавычками)
+ cls:'case-common',
+ drop:{'r-common':80,'r-rare':20}
+},
+{
+ id:2,
+ name:'Звёздный кейс',
+ price:150,
+ img:'https://static.tildacdn.com/tila3338-3330-4235-b761-316232656633/photo_2026-11-22_21-.jpg', // <- ПРЯМАЯ ССЫЛКА НА ПРЕВЬЮ (вставь URL картинки между кавычками)
+ cls:'case-rare',
+ drop:{'r-common':50,'r-rare':40,'r-epic':10}
+},
+{
+ id:3,
+ name:'Золотой кейс',
+ price:500,
+ img:'https://static.tildacdn.com/tila6434-6564-4739-a531-616361623737/photo_2026-11-22_21-.jpg', // <- ПРЯМАЯ ССЫЛКА НА ПРЕВЬЮ (вставь URL картинки между кавычками)
+ cls:'case-gold',
+ drop:{'r-rare':50,'r-epic':35,'r-gold':15}
+},
+{
+ id:4,
+ name:'Космический кейс',
+ price:1500,
+ img:'https://static.tildacdn.com/tila6662-3130-4138-a564-376332383931/photo_2026-11-22_21-.jpg', // <- ПРЯМАЯ ССЫЛКА НА ПРЕВЬЮ (вставь URL картинки между кавычками)
+ cls:'case-mythic',
+ drop:{'r-epic':45,'r-gold':35,'r-legend':15,'r-mythic':5}
+}
+];
+const CASE_PLACEHOLDER='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>');
+const STAR_SVG='<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z"/></svg>';
+function renderCases(){
+ const box=document.getElementById('casesList');box.innerHTML='';
+ CASES.forEach(c=>{
+  const d=document.createElement('div');d.className='case '+(c.cls||'');d.onclick=()=>openCase(c);
+  const img=document.createElement('img');img.className='pic';img.alt=c.name;
+  img.src=c.img||CASE_PLACEHOLDER;
+  img.onerror=()=>{img.onerror=null;img.src=CASE_PLACEHOLDER;};
+  const n=document.createElement('div');n.className='nm';n.textContent=c.name;
+  const p=document.createElement('div');p.className='pr';
+  p.innerHTML=STAR_SVG;
+  const t=document.createElement('span');t.textContent=c.price;p.appendChild(t);
+  d.appendChild(img);d.appendChild(n);d.appendChild(p);box.appendChild(d);
+ });
+}
+// ===== Колесо фортуны =====
+const RANK_COLOR={'r-common':'#9ca3af','r-rare':'#38bdf8','r-epic':'#a855f7','r-gold':'#facc15','r-legend':'#fb923c','r-mythic':'#ff69b4'};
+const RANK_NAME={'r-mythic':'космический','r-legend':'мифический','r-gold':'легендарный','r-epic':'эпический','r-rare':'редкий','r-common':'мусорный'};
+const ITEM_W=96,WIN_IDX=50,STRIP_LEN=60;
+let curCase=null,caseBusy=false;
+function pickGift(drop){
+ const ranks=Object.keys(drop).filter(r=>GIFTS.some(g=>rarity(g)===r));
+ if(!ranks.length)return null;
+ let total=0;ranks.forEach(r=>total+=drop[r]);
+ let x=Math.random()*total,rank=ranks[ranks.length-1];
+ for(const r of ranks){if(x<drop[r]){rank=r;break;}x-=drop[r];}
+ const pool=GIFTS.filter(g=>rarity(g)===rank);
+ return pool[Math.floor(Math.random()*pool.length)];
+}
+function makeWItem(g){
+ const d=document.createElement('div');d.className='wItem';
+ d.style.setProperty('--c',RANK_COLOR[rarity(g)]);
+ const e=document.createElement('div');e.className='e';e.textContent=g.emoji;
+ const p=document.createElement('div');p.className='p';p.textContent=g.price+' ⭐';
+ d.appendChild(e);d.appendChild(p);return d;
+}
+function buildStrip(winner){
+ const strip=document.getElementById('strip');strip.innerHTML='';
+ for(let i=0;i<STRIP_LEN;i++){
+  const g=(i===WIN_IDX&&winner)?winner:pickGift(curCase.drop);
+  const it=makeWItem(g);if(i===WIN_IDX&&winner)it.dataset.win='1';
+  strip.appendChild(it);
+ }
+}
+function centerX(idx,offset){
+ const w=document.querySelector('#caseView .wheelWrap').clientWidth;
+ return -(idx*ITEM_W+ITEM_W/2-w/2+offset);
+}
+function updateOpenBtn(){
+ document.getElementById('cvOpen').innerHTML='Открыть · '+curCase.price+' '+STAR_SVG;
+}
+function openCase(c){
+ curCase=c;
+ const box=document.getElementById('cvBox');box.className='case cvBox '+(c.cls||'');
+ const pic=document.getElementById('cvPic');pic.src=c.img||CASE_PLACEHOLDER;pic.onerror=()=>{pic.onerror=null;pic.src=CASE_PLACEHOLDER;};
+ document.getElementById('cvName').textContent=c.name;
+ const sum=Object.values(c.drop).reduce((a,b)=>a+b,0);
+ document.getElementById('cvDrop').textContent='Шансы: '+Object.keys(c.drop).map(r=>RANK_NAME[r]+' '+Math.round(c.drop[r]/sum*100)+'%').join(' · ');
+ document.getElementById('cvResult').textContent='';
+ updateOpenBtn();
+ document.getElementById('caseView').classList.add('on');
+ buildStrip(null);
+ const strip=document.getElementById('strip');
+ strip.style.transition='none';strip.style.transform='translateX('+centerX(10,0)+'px)';
+}
+function closeCase(){if(caseBusy)return;document.getElementById('caseView').classList.remove('on');}
+function openCaseSpin(){
+ if(caseBusy||!curCase)return;
+ if(S.stars<curCase.price){alert('Не хватает звёзд');return;}
+ const win=pickGift(curCase.drop);if(!win)return;
+ caseBusy=true;
+ const btn=document.getElementById('cvOpen'),res=document.getElementById('cvResult'),strip=document.getElementById('strip');
+ btn.disabled=true;document.getElementById('cvClose').disabled=true;res.textContent='';
+ S.stars-=curCase.price;S.gifts.push(win.id);save();
+ buildStrip(win);
+ strip.style.transition='none';strip.style.transform='translateX('+centerX(8,0)+'px)';
+ void strip.offsetWidth;
+ const off=(Math.random()-.5)*60;
+ strip.style.transition='transform 5s cubic-bezier(.1,.7,.1,1)';
+ strip.style.transform='translateX('+centerX(WIN_IDX,off)+'px)';
+ setTimeout(()=>{
+  const w=strip.querySelector('[data-win]');if(w)w.classList.add('win');
+  res.textContent='Выпало: '+win.emoji+' '+win.name+' ('+RANK_NAME[rarity(win)]+')';
+  caseBusy=false;btn.disabled=false;document.getElementById('cvClose').disabled=false;
+ },5100);
+}
+// ===== Продажа подарков =====
+// SELL_RATE - доля цены подарка, которая возвращается звёздами при продаже (1 = 100%, 0.5 = 50%)
+const SELL_RATE=1;
+let sellIdx=null,sellId=null;
+function sellPrice(g){return Math.floor(g.price*SELL_RATE);}
+function openSell(i){
+ const gid=S.gifts[i];if(gid===undefined)return;
+ const g=giftById(gid);
+ sellIdx=i;sellId=gid;
+ document.getElementById('sellEmoji').textContent=g.emoji;
+ document.getElementById('sellText').textContent='Продать «'+g.name+'» за '+sellPrice(g)+' ⭐?';
+ document.getElementById('sellModal').classList.add('on');
+}
+function closeSell(){
+ sellIdx=null;sellId=null;
+ document.getElementById('sellModal').classList.remove('on');
+}
+function confirmSell(){
+ if(sellIdx===null||S.gifts[sellIdx]!==sellId){closeSell();return;}
+ const g=giftById(sellId);
+ S.stars+=sellPrice(g);
+ S.gifts.splice(sellIdx,1);
+ if(S.fav===sellId&&!S.gifts.includes(sellId))S.fav=null;
+ closeSell();
+ save();
+}
+// ===== ПРОМОКОДЫ - РЕДАКТИРУЙ ЗДЕСЬ =====
+// Формат: 'КОД': количество звёзд. Код вводится без учёта регистра.
+// Чтобы добавить промокод, допиши строку; чтобы убрать - удали её.
+// Каждый код пользователь может активировать только один раз (использованные коды хранятся в S.promos).
+const PROMO_CODES={
+ 'STARUP':250,
+ 'ZEMANNNNNN':1500,
+ '2016':2016
+};
+function openPromo(){
+ document.getElementById('promoInput').value='';
+ const m=document.getElementById('promoMsg');m.textContent='';m.style.color='';
+ document.getElementById('promoModal').classList.add('on');
+ setTimeout(()=>document.getElementById('promoInput').focus(),50);
+}
+function closePromo(){document.getElementById('promoModal').classList.remove('on');}
+function applyPromo(){
+ const inp=document.getElementById('promoInput'),m=document.getElementById('promoMsg');
+ const code=inp.value.trim().toUpperCase();
+ const fail=t=>{m.style.color='#f87171';m.textContent=t;};
+ if(!code){fail('Введите код');return;}
+ const key=Object.keys(PROMO_CODES).find(k=>k.toUpperCase()===code);
+ if(!key){fail('Код не найден');return;}
+ if(!Array.isArray(S.promos))S.promos=[];
+ if(S.promos.includes(key.toUpperCase())){fail('Этот код уже использован');return;}
+ const amount=PROMO_CODES[key];
+ S.promos.push(key.toUpperCase());
+ S.stars+=amount;
+ save();
+ inp.value='';
+ m.style.color='#4ade80';m.textContent='Готово! +'+amount+' ⭐ на баланс';
+}
+renderCases();makeBg();renderChances();updateInfo();render();
+setInterval(renderEarn,30000);
+</script>
+</body>
+</html>
